@@ -1,0 +1,21 @@
+# Render Blueprint - one-click deploy of FreshTrack on the FREE tier.
+# In Render: New + -> Blueprint -> pick this repo -> Apply.
+services:
+  - type: web
+    name: freshtrack
+    runtime: node
+    plan: free
+    branch: main
+    # --include=dev so Vite/TypeScript are available for the web build
+    buildCommand: npm install --include=dev && npm run build
+    # seed (idempotent) ensures the admin + demo data exist, then start the API
+    # which also serves the built web UI
+    startCommand: npm run seed && npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      # Render generates a strong secret automatically
+      - key: JWT_SECRET
+        generateValue: true
+      # Optional: add your Gemini key in the Render dashboard (Environment tab)
+      # to enable the AI features. Leave unset to run without AI.
