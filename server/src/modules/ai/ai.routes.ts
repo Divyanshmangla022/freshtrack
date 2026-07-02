@@ -7,7 +7,7 @@ import { INVOICE_STATUS, ROLES } from '../../types.ts';
 import { requireAuth, requireRole } from '../auth/auth.middleware.ts';
 import type { ReconciliationFilter } from '../reports/reports.repo.ts';
 import { answerQuestion, generateInsights } from './assistant.ts';
-import { aiEnabled } from './ai.client.ts';
+import { aiReady } from './ai.client.ts';
 
 const router = Router();
 
@@ -34,7 +34,7 @@ router.get(
   requireAuth,
   asyncHandler(async (_req, res) => {
     res.json({
-      enabled: aiEnabled(),
+      enabled: await aiReady(),
       provider: config.ai.provider,
       mappingModel: config.ai.mappingModel,
       assistantModel: config.ai.assistantModel,

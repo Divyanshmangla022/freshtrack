@@ -7,7 +7,11 @@ import { config } from '../../config.ts';
 // from config so the operator can pick the exact Gemini model per environment.
 // ---------------------------------------------------------------------------
 
-type GenAIResponse = { text?: string };
+type GenAIResponse = {
+  text?: string;
+  candidates?: Array<{ finishReason?: string }>;
+  promptFeedback?: { blockReason?: string };
+};
 type GenAIModels = {
   generateContent: (params: {
     model: string;
@@ -21,6 +25,15 @@ let clientPromise: Promise<GenAIClient | null> | null = null;
 
 export function aiEnabled(): boolean {
   return config.ai.enabled;
+}
+
+/** True only if the SDK actually loaded and a client is constructed. */
+export async function aiReady(): Promise<boolean> {
+  return (await getClient()) !== null;
+}
+
+function diagnostics(res: GenAIResponse): { blocked?: string; finish?: string } {
+  return { blocked: res.promptFeedback?.blockReason, finish: res.candidates?.[0]?.finishReason };
 }
 
 async function getClient(): Promise<GenAIClient | null> {
@@ -66,10 +79,18 @@ export async function completeText(params: {
         temperature: 0.2,
       },
     });
-    // Treat empty / whitespace-only output (safety blocks, truncation, empty
-    // candidates) as "no answer" so callers fall back instead of showing "".
+    const { blocked, finish } = diagnostics(res);
+    if (blocked) {
+      console.warn('[ai] text response blocked:', blocked);
+      return null;
+    }
+    // Treat empty / whitespace-only output as "no answer" so callers fall back.
     const text = res.text;
-    return text && text.trim() ? text : null;
+    if (!text || !text.trim()) {
+      if (finish === 'MAX_TOKENS') console.warn('[ai] text truncated (MAX_TOKENS) - consider raising maxTokens');
+      return null;
+    }
+    return text;
   } catch (err) {
     console.warn('[ai] text completion failed:', (err as Error).message);
     return null;
@@ -77,10 +98,11 @@ export async function completeText(params: {
 }
 
 /**
- * JSON completion. Asks Gemini for JSON (responseMimeType application/json) and
- * parses it. `schema` is embedded in the prompt as a shape hint - kept provider-
- * agnostic so we don't depend on a specific SDK's schema dialect. Returns null
- * on any failure.
+ * JSON completion. Uses the backend's structured-output mode: `responseJsonSchema`
+ * makes the model emit JSON that conforms to `schema` (not just a prose request),
+ * with `responseMimeType` set to application/json. Thinking is disabled because
+ * this is a fast, deterministic extraction task. JSON.parse + fence-stripping
+ * remain as a defensive fallback. Returns null on any failure.
  */
 export async function completeJSON<T>(params: {
   model: string;
@@ -92,19 +114,28 @@ export async function completeJSON<T>(params: {
   const client = await getClient();
   if (!client) return null;
   try {
-    const system = `${params.system}\n\nRespond with ONLY valid JSON matching this JSON Schema (no prose, no code fences):\n${JSON.stringify(params.schema)}`;
     const res = await client.models.generateContent({
       model: params.model,
       contents: params.user,
       config: {
-        systemInstruction: system,
+        systemInstruction: `${params.system}\n\nReturn ONLY a JSON value conforming to the schema - no prose, no code fences.`,
         maxOutputTokens: params.maxTokens ?? 1024,
         temperature: 0,
         responseMimeType: 'application/json',
+        responseJsonSchema: params.schema,
+        thinkingConfig: { thinkingBudget: 0 },
       },
     });
+    const { blocked, finish } = diagnostics(res);
+    if (blocked) {
+      console.warn('[ai] JSON response blocked:', blocked);
+      return null;
+    }
     const text = res.text;
-    if (!text) return null;
+    if (!text) {
+      if (finish === 'MAX_TOKENS') console.warn('[ai] JSON truncated (MAX_TOKENS) - consider raising maxTokens');
+      return null;
+    }
     return JSON.parse(stripFences(text)) as T;
   } catch (err) {
     console.warn('[ai] JSON completion failed:', (err as Error).message);

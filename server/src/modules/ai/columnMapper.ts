@@ -103,7 +103,9 @@ async function aiFillGaps(
   const system =
     'You map arbitrary spreadsheet column headers to a fixed canonical inventory-invoice schema. ' +
     'For each canonical field, return the EXACT header string that best matches, or an empty string if no column fits. ' +
-    'Never invent headers; only choose from the provided list.';
+    'Never invent headers; only choose from the provided list. Map each header to at most one canonical field. ' +
+    'sample_rows are aligned to headers by position: sample_rows[k][i] is the value under headers[i]. ' +
+    'Use these example values to disambiguate similarly named columns (e.g. an SKU/barcode column vs an invoice-number column).';
   const user = JSON.stringify({
     canonical_fields: {
       Invoice_ID: 'Unique invoice identifier',
@@ -128,13 +130,19 @@ async function aiFillGaps(
 
   const normHeaders = headers.map(normalize);
   const merged = { ...base };
+  // Preserve the strict one-to-one invariant: a header already claimed (by the
+  // heuristic or an earlier AI fill) cannot be reused for another field.
+  const used = new Set<number>(Object.values(merged).filter((i) => i !== -1));
   for (const field of CANONICAL_FIELDS) {
     if (merged[field] !== -1) continue; // keep confident heuristic matches
     const suggested = result[field];
     if (!suggested) continue;
     let idx = headers.indexOf(suggested);
     if (idx === -1) idx = normHeaders.indexOf(normalize(suggested));
-    if (idx !== -1) merged[field] = idx;
+    if (idx !== -1 && !used.has(idx)) {
+      merged[field] = idx;
+      used.add(idx);
+    }
   }
   return merged;
 }

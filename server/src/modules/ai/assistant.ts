@@ -15,7 +15,10 @@ const MAX_CONTEXT_LINES = 150;
 function compactRows(filter: ReconciliationFilter) {
   const rows = getReconciliationRows(filter);
   const summary = buildSummary(rows);
-  const sample = rows.slice(0, MAX_CONTEXT_LINES).map((r) => ({
+  // Rank by absolute variance so the most decision-relevant lines survive the cap
+  // (rather than an arbitrary alphabetical prefix).
+  const ordered = [...rows].sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance));
+  const sample = ordered.slice(0, MAX_CONTEXT_LINES).map((r) => ({
     invoice: r.invoice_id,
     vendor: r.vendor_name,
     warehouse: r.warehouse_code,
@@ -27,7 +30,7 @@ function compactRows(filter: ReconciliationFilter) {
     status: r.status,
     date: r.created_at.slice(0, 10),
   }));
-  return { rows, summary, sample };
+  return { rows, summary, sample, totalLines: rows.length, partial: rows.length > sample.length };
 }
 
 export interface AssistantAnswer {
@@ -41,7 +44,7 @@ export async function answerQuestion(
   question: string,
   filter: ReconciliationFilter,
 ): Promise<AssistantAnswer> {
-  const { summary, sample } = compactRows(filter);
+  const { summary, sample, totalLines, partial } = compactRows(filter);
 
   if (!aiEnabled()) {
     return {
@@ -53,12 +56,24 @@ export async function answerQuestion(
     };
   }
 
+  if (totalLines === 0) {
+    return { aiEnabled: true, grounded: true, answer: 'No reconciliation data matches the selected filter.', summary };
+  }
+
   const system =
     "You are FreshTrack's inbound-receiving operations analyst. Answer ONLY from the provided reconciliation JSON. " +
-    'Variance = Expected − Received (positive = shortfall / missing units, negative = overage). ' +
+    'Variance = Expected - Received (positive = shortfall / missing units, negative = overage). ' +
     'Be concise and specific: cite invoice IDs, SKUs, vendors, warehouses, and exact numbers. ' +
+    'The sample_lines array may be a partial, variance-ranked subset (see sample_is_partial and total_lines). ' +
+    'For counts or exhaustive lists, rely on the summary totals; if a full row-level enumeration is requested while sample_is_partial is true, state that only a subset of rows is shown and give the summary figures instead. ' +
     'If the data does not contain the answer, say so plainly rather than guessing.';
-  const user = `RECONCILIATION_DATA:\n${JSON.stringify({ summary, sample_lines: sample })}\n\nQUESTION: ${question}`;
+  const user = `RECONCILIATION_DATA:\n${JSON.stringify({
+    summary,
+    total_lines: totalLines,
+    sample_line_count: sample.length,
+    sample_is_partial: partial,
+    sample_lines: sample,
+  })}\n\nQUESTION: ${question}`;
 
   const answer = await completeText({ model: config.ai.assistantModel, system, user, maxTokens: 1024 });
   if (!answer) {
@@ -81,12 +96,16 @@ export interface InsightsResult {
 export async function generateInsights(filter: ReconciliationFilter): Promise<InsightsResult> {
   const { summary } = compactRows(filter);
   if (!aiEnabled()) return { aiEnabled: false, insights: null, summary };
+  if (summary.totals.lines === 0) {
+    return { aiEnabled: true, insights: 'No reconciliation data for the selected filter.', summary };
+  }
 
   const system =
     "You are FreshTrack's receiving-operations analyst. From the reconciliation summary, write 3-5 short, actionable bullet points: " +
     'call out overall fill rate, the vendors/warehouses with the largest variances, and any invoices needing attention. ' +
-    'Ground every claim strictly in the numbers provided. Return plain bullets, no preamble.';
-  const user = JSON.stringify({ summary, top_variances: summary.topVariances });
+    'Ground every claim strictly in the numbers provided; if a metric is not present in the data, do not speculate - say there is insufficient data for that point. ' +
+    'Return plain bullets, no preamble.';
+  const user = JSON.stringify({ summary });
 
   const insights = await completeText({ model: config.ai.assistantModel, system, user, maxTokens: 700 });
   return { aiEnabled: true, insights, summary };
