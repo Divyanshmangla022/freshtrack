@@ -41,6 +41,17 @@ export interface GroupAggregate {
   variance: number;
 }
 
+export interface InvoiceAggregate {
+  invoiceId: string;
+  vendorName: string;
+  warehouseCode: string;
+  status: string;
+  expected: number;
+  received: number;
+  variance: number;
+  lineCount: number;
+}
+
 export interface ReportSummary {
   totals: {
     invoices: number;
@@ -54,6 +65,7 @@ export interface ReportSummary {
   };
   byWarehouse: GroupAggregate[];
   byVendor: GroupAggregate[];
+  byInvoice: InvoiceAggregate[];
   topVariances: ReconciliationRowDTO[];
 }
 
@@ -66,6 +78,7 @@ export function buildSummary(rows: ReconciliationRow[]): ReportSummary {
   const vendors = new Map<string, GroupAggregate>();
   const invoiceIds = new Set<string>();
   const invoiceComplete = new Map<string, boolean>();
+  const invoiceAgg = new Map<string, InvoiceAggregate>();
 
   for (const r of rows) {
     expected += r.expected_quantity;
@@ -91,6 +104,22 @@ export function buildSummary(rows: ReconciliationRow[]): ReportSummary {
     v.received += r.received_quantity;
     v.variance += r.variance;
     vendors.set(vKey, v);
+
+    const inv = invoiceAgg.get(r.invoice_id) ?? {
+      invoiceId: r.invoice_id,
+      vendorName: r.vendor_name,
+      warehouseCode: r.warehouse_code,
+      status: r.status,
+      expected: 0,
+      received: 0,
+      variance: 0,
+      lineCount: 0,
+    };
+    inv.expected += r.expected_quantity;
+    inv.received += r.received_quantity;
+    inv.variance += r.variance;
+    inv.lineCount += 1;
+    invoiceAgg.set(r.invoice_id, inv);
   }
 
   // Distinct invoice counts per group.
@@ -136,6 +165,7 @@ export function buildSummary(rows: ReconciliationRow[]): ReportSummary {
     },
     byWarehouse: [...warehouses.values()].map(stripCode).sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance)),
     byVendor: [...vendors.values()].sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance)),
+    byInvoice: [...invoiceAgg.values()].sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance)),
     topVariances,
   };
 }

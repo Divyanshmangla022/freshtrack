@@ -138,6 +138,16 @@ export interface GroupAggregate {
   received: number;
   variance: number;
 }
+export interface InvoiceAggregate {
+  invoiceId: string;
+  vendorName: string;
+  warehouseCode: string;
+  status: string;
+  expected: number;
+  received: number;
+  variance: number;
+  lineCount: number;
+}
 export interface ReportSummary {
   totals: {
     invoices: number;
@@ -151,6 +161,7 @@ export interface ReportSummary {
   };
   byWarehouse: GroupAggregate[];
   byVendor: GroupAggregate[];
+  byInvoice: InvoiceAggregate[];
   topVariances: ReconciliationRow[];
 }
 export interface ReconciliationResponse {

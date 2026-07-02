@@ -66,6 +66,7 @@ export async function answerQuestion(
     'Be concise and specific: cite invoice IDs, SKUs, vendors, warehouses, and exact numbers. ' +
     'The sample_lines array may be a partial, variance-ranked subset (see sample_is_partial and total_lines). ' +
     'For counts or exhaustive lists, rely on the summary totals; if a full row-level enumeration is requested while sample_is_partial is true, state that only a subset of rows is shown and give the summary figures instead. ' +
+    'summary.byInvoice has exact per-invoice totals (expected/received/variance); summary.topVariances lists only the 10 largest lines - never sum it to compute an invoice or group total. ' +
     'If the data does not contain the answer, say so plainly rather than guessing.';
   const user = `RECONCILIATION_DATA:\n${JSON.stringify({
     summary,
@@ -103,6 +104,8 @@ export async function generateInsights(filter: ReconciliationFilter): Promise<In
   const system =
     "You are FreshTrack's receiving-operations analyst. From the reconciliation summary, write 3-5 short, actionable bullet points: " +
     'call out overall fill rate, the vendors/warehouses with the largest variances, and any invoices needing attention. ' +
+    'Use exact figures from summary.totals, summary.byWarehouse, summary.byVendor and summary.byInvoice (which has exact per-invoice expected/received/variance totals). ' +
+    'summary.topVariances lists only the 10 largest LINES and is NOT exhaustive - never sum it to compute an invoice or group total. ' +
     'Ground every claim strictly in the numbers provided; if a metric is not present in the data, do not speculate - say there is insufficient data for that point. ' +
     'Return plain bullets, no preamble.';
   const user = JSON.stringify({ summary });
