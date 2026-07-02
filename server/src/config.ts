@@ -59,7 +59,7 @@ export const config = {
     apiKey: geminiApiKey,
     enabled: Boolean(geminiApiKey),
     mappingModel: str('AI_MAPPING_MODEL', 'gemini-2.5-flash'),
-    assistantModel: str('AI_ASSISTANT_MODEL', 'gemini-2.5-pro'),
+    assistantModel: str('AI_ASSISTANT_MODEL', 'gemini-2.5-flash'),
   },
 } as const;
 

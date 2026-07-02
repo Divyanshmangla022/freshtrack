@@ -46,7 +46,10 @@ export function AdminDashboard() {
         '/ai/insights',
         {},
       );
-      setInsights(res.insights);
+      setInsights(
+        res.insights ??
+          'AI insights are unavailable right now (the model may be rate-limited or the free-tier quota is exhausted). Please try again shortly.',
+      );
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Something went wrong');
     } finally {

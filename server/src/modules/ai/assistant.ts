@@ -75,7 +75,7 @@ export async function answerQuestion(
     sample_lines: sample,
   })}\n\nQUESTION: ${question}`;
 
-  const answer = await completeText({ model: config.ai.assistantModel, system, user, maxTokens: 1024 });
+  const answer = await completeText({ model: config.ai.assistantModel, system, user, maxTokens: 2048 });
   if (!answer) {
     return {
       aiEnabled: true,
@@ -107,6 +107,6 @@ export async function generateInsights(filter: ReconciliationFilter): Promise<In
     'Return plain bullets, no preamble.';
   const user = JSON.stringify({ summary });
 
-  const insights = await completeText({ model: config.ai.assistantModel, system, user, maxTokens: 700 });
+  const insights = await completeText({ model: config.ai.assistantModel, system, user, maxTokens: 2048 });
   return { aiEnabled: true, insights, summary };
 }
