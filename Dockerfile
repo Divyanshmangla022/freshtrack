@@ -22,4 +22,6 @@ EXPOSE 4000
 # SQLite database lives here; mount a volume to persist it across restarts.
 VOLUME ["/app/server/data"]
 
-CMD ["node", "server/src/index.ts"]
+# Seed the database (idempotent) so the admin + demo accounts always exist,
+# then start the API (which also serves the built web UI).
+CMD ["sh", "-c", "node server/src/db/seed.ts && node server/src/index.ts"]
