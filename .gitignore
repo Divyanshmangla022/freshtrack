@@ -1,0 +1,20 @@
+node_modules/
+dist/
+build/
+*.log
+
+# Runtime data (SQLite database + WAL/SHM sidecars)
+server/data/
+*.db
+*.db-wal
+*.db-shm
+
+# Local env files (keep .env.example committed)
+.env
+server/.env
+web/.env
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/

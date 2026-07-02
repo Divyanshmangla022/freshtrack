@@ -1,0 +1,5 @@
+Inv No,Supplier,Destination Warehouse,Product Code,Description,Qty
+PO-77120,Coastal Farms,WH-CHI-01,ZUC-GRN-601,Green Zucchini,110
+PO-77120,Coastal Farms,WH-CHI-01,SQU-YEL-602,Yellow Squash,95
+PO-77120,Coastal Farms,WH-CHI-01,EGG-ITA-603,Italian Eggplant,50
+PO-77121,Coastal Farms,WH-CHI-01,MUS-BTN-604,Button Mushroom 8oz,140

@@ -1,0 +1,6 @@
+Invoice_ID,Vendor_Name,Target_Warehouse_ID,Item_SKU,Item_Name,Expected_Quantity
+INV-SAMPLE-01,Orchard Direct,WH-NYC-01,APL-GALA-501,Gala Apple,90
+INV-SAMPLE-01,Orchard Direct,WH-NYC-01,PEA-BART-502,Bartlett Pear,60
+INV-SAMPLE-01,Orchard Direct,WH-NYC-01,PLM-BLK-503,Black Plum,45
+INV-SAMPLE-02,Valley Greens,WH-LAX-01,SPR-MIX-504,Spring Mix 1lb,120
+INV-SAMPLE-02,Valley Greens,WH-LAX-01,ARU-BAG-505,Arugula Bag,80
